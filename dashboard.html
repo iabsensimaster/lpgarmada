@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>i-Armada - Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="./config.js"></script>
+</head>
+<body class="bg-sky-50 min-h-screen">
+  <div class="p-4 max-w-3xl mx-auto">
+    <header class="flex items-center justify-between mb-4">
+      <h1 class="text-xl font-semibold text-sky-600">Dashboard PT</h1>
+      <div>
+        <span id="namaUser" class="mr-4"></span>
+        <button id="btnLogout" class="bg-white border px-3 py-1 rounded">Logout</button>
+      </div>
+    </header>
+
+    <div class="bg-white p-4 rounded shadow mb-4">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="font-medium">Armada</h2>
+          <p class="text-sm text-slate-500">Daftar armada untuk PT Anda</p>
+        </div>
+        <div>
+          <a href="armada-form.html" class="px-3 py-2 bg-sky-500 text-white rounded">Tambah Armada</a>
+        </div>
+      </div>
+
+      <div id="spinner" class="mt-4 flex justify-center hidden">
+        <div class="w-10 h-10 border-4 rounded-full spinner animate-spin border-sky-500 border-t-transparent"></div>
+      </div>
+
+      <div id="armadaList" class="mt-4 grid gap-3"></div>
+    </div>
+
+    <div class="bg-white p-4 rounded shadow mb-4">
+      <h2 class="font-medium">Grafik Maintenance</h2>
+      <p class="text-sm text-slate-500 mb-2">Lihat ringkasan maintenance (frekuensi / tanggal terakhir)</p>
+      <canvas id="chartCanvas" class="w-full h-48"></canvas>
+      <p class="text-xs text-slate-400 mt-2">* Simple chart - waktu terakhir & frekuensi per bulan</p>
+    </div>
+
+    <div class="bg-white p-4 rounded shadow mb-4">
+      <h2 class="font-medium">Driver</h2>
+      <p class="text-sm text-slate-500">Kelola driver</p>
+      <a href="driver.html" class="inline-block mt-3 px-3 py-2 bg-sky-500 text-white rounded">Kelola Driver</a>
+    </div>
+  </div>
+
+<script>
+const api = API_URL;
+const token = localStorage.getItem('iarmada_token');
+const id_pt = localStorage.getItem('iarmada_id_pt');
+document.getElementById('namaUser').textContent = localStorage.getItem('iarmada_nama') || '';
+if (!token) window.location.href = 'login.html';
+
+document.getElementById('btnLogout').addEventListener('click', ()=>{
+  localStorage.clear();
+  window.location.href = 'login.html';
+});
+
+async function loadArmada(){
+  document.getElementById('spinner').classList.remove('hidden');
+  const res = await fetch(api + '?action=getArmada&id_pt='+encodeURIComponent(id_pt));
+  const j = await res.json();
+  const out = document.getElementById('armadaList');
+  out.innerHTML = '';
+  if (j.ok) {
+    j.data.forEach(a=>{
+      const div = document.createElement('div');
+      div.className = "p-3 border rounded flex justify-between items-center";
+      div.innerHTML = `<div>
+        <div class="font-medium">${a.plat_nomor} — ${a.merk} ${a.tipe}</div>
+        <div class="text-sm text-slate-500">Pegangan: ${a.pegangan || '-'}</div>
+      </div>
+      <div class="flex gap-2">
+        <a href="maintenance.html?id_armada=${a.id_armada}" class="px-2 py-1 bg-sky-100 text-sky-700 rounded text-sm">Riwayat</a>
+        <a href="armada-form.html?id_armada=${a.id_armada}" class="px-2 py-1 bg-white border rounded text-sm">Edit</a>
+      </div>`;
+      out.appendChild(div);
+    });
+  } else {
+    out.textContent = 'Gagal load armada';
+  }
+  document.getElementById('spinner').classList.add('hidden');
+}
+
+async function loadChart(){
+  // Simple aggregated fetch
+  const res = await fetch(api + '?action=chartAggregated&id_pt='+encodeURIComponent(id_pt));
+  const j = await res.json();
+  const canvas = document.getElementById('chartCanvas');
+  if (!j.ok) return;
+  // quick text fallback (to avoid adding chart library)
+  canvas.replaceWith(document.createElement('div'));
+  const c = document.querySelector('div#chartCanvas') || document.createElement('div');
+  c.textContent = `Last maintenance items: ${j.lastPer ? j.lastPer.length : 0} records. (Open detail Armadas untuk melihat timeline.)`;
+  c.className = 'text-sm text-slate-500';
+  // NOTE: you can integrate Chart.js later for nicer charts.
+}
+
+loadArmada();
+loadChart();
+</script>
+</body>
+</html>
