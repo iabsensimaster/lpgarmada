@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>i-Armada - Register</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="./config.js"></script>
+</head>
+<body class="bg-sky-50 min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-md p-6 bg-white rounded-2xl shadow-md">
+    <h1 class="text-2xl font-semibold text-sky-600 mb-4">Daftar Admin PT</h1>
+    <div id="toast" class="hidden mb-3 text-sm"></div>
+    <form id="regForm" class="space-y-4">
+      <div><label class="block text-sm">Nama</label><input id="nama" class="w-full border rounded px-3 py-2" required></div>
+      <div><label class="block text-sm">Email</label><input id="email" type="email" class="w-full border rounded px-3 py-2" required></div>
+      <div><label class="block text-sm">Password</label><input id="password" type="password" class="w-full border rounded px-3 py-2" required></div>
+      <div><label class="block text-sm">Pilih PT</label>
+        <select id="selectPT" class="w-full border rounded px-3 py-2"></select>
+      </div>
+      <button class="w-full py-2 rounded bg-sky-500 text-white">Register</button>
+    </form>
+    <p class="text-sm mt-4">Sudah punya akun? <a href="login.html" class="text-sky-600">Login</a></p>
+  </div>
+
+<script>
+const api = API_URL;
+const toastEl = document.getElementById('toast');
+function toast(msg, err) {
+  toastEl.textContent = msg;
+  toastEl.className = (err ? 'text-red-600' : 'text-green-600') + ' mb-3';
+  toastEl.style.display = 'block';
+  setTimeout(()=>{ toastEl.style.display='none' }, 3500);
+}
+
+async function loadPTs(){
+  const res = await fetch(api + '?action=getPTs');
+  const j = await res.json();
+  const sel = document.getElementById('selectPT');
+  if (j.ok) {
+    j.data.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id_pt; o.textContent = p.nama_pt;
+      sel.appendChild(o);
+    });
+  } else {
+    toast('Gagal ambil list PT', true);
+  }
+}
+
+document.getElementById('regForm').addEventListener('submit', async (ev)=>{
+  ev.preventDefault();
+  const nama = document.getElementById('nama').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const id_pt = document.getElementById('selectPT').value;
+  try {
+    const res = await fetch(api, {method:'POST', body: JSON.stringify({action:'register', nama, email, password, id_pt})});
+    const j = await res.json();
+    if (!j.ok) toast(j.error || 'Register gagal', true);
+    else {
+      toast('Registrasi berhasil. Silakan login.');
+      setTimeout(()=> window.location.href='login.html', 1200);
+    }
+  } catch(err){
+    toast('Error: '+err.message, true);
+  }
+});
+
+loadPTs();
+</script>
+</body>
+</html>
