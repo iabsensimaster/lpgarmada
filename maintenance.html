@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Riwayat Maintenance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="./config.js"></script>
+</head>
+<body class="bg-sky-50 min-h-screen">
+  <div class="p-4 max-w-3xl mx-auto">
+    <header class="flex items-center justify-between mb-4">
+      <h1 class="text-lg font-semibold text-sky-600">Riwayat Maintenance</h1>
+      <a href="dashboard.html" class="text-sm">Kembali</a>
+    </header>
+
+    <div class="bg-white p-4 rounded shadow mb-4">
+      <form id="addForm" class="grid gap-2">
+        <input type="hidden" id="id_armada">
+        <select id="jenis" class="border rounded px-3 py-2" required>
+          <option>Ganti Oli</option>
+          <option>Service</option>
+          <option>Ganti Ban</option>
+          <option>Ganti Kopling</option>
+          <option>Perpanjang STNK</option>
+          <option>Pajak Tahunan/KIR</option>
+        </select>
+        <input id="tanggal" type="date" class="border rounded px-3 py-2" required>
+        <input id="km" class="border rounded px-3 py-2" placeholder="KM / Odometer (opsional)">
+        <input id="catatan" class="border rounded px-3 py-2" placeholder="Catatan">
+        <div class="flex gap-2">
+          <button class="py-2 px-4 bg-sky-500 text-white rounded">Tambah</button>
+          <button type="button" id="refreshBtn" class="py-2 px-4 border rounded">Refresh</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="spinner" class="hidden flex justify-center mb-3"><div class="w-10 h-10 border-4 rounded-full spinner animate-spin border-sky-500 border-t-transparent"></div></div>
+    <div id="list" class="grid gap-2"></div>
+  </div>
+
+<script>
+const api = API_URL;
+const token = localStorage.getItem('iarmada_token');
+const id_pt = localStorage.getItem('iarmada_id_pt');
+if (!token) window.location.href='login.html';
+
+function qs(s){return document.querySelector(s);}
+function getParam(name){
+  const url = new URL(location.href);
+  return url.searchParams.get(name);
+}
+const id_armada = getParam('id_armada') || getParam('id');
+qs('#id_armada').value = id_armada || '';
+
+async function loadList(){
+  document.getElementById('spinner').classList.remove('hidden');
+  const res = await fetch(api + '?action=getMaintenance' + (id_armada ? '&id_armada='+encodeURIComponent(id_armada) : '&id_pt='+encodeURIComponent(id_pt)));
+  const j = await res.json();
+  const out = document.getElementById('list');
+  out.innerHTML = '';
+  if (j.ok) {
+    j.data.sort((a,b)=> new Date(b.tanggal) - new Date(a.tanggal)).forEach(m => {
+      const el = document.createElement('div');
+      el.className = 'p-3 border rounded bg-white flex justify-between items-start';
+      el.innerHTML = `<div>
+        <div class="font-medium">${m.jenis} — ${m.tanggal}</div>
+        <div class="text-sm text-slate-500">KM: ${m.km_odometer||'-'} • ${m.catatan||'-'}</div>
+        <div class="text-xs text-slate-400">oleh: ${m.created_by||'-'}</div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button class="editBtn text-sm px-2 py-1 border rounded" data-id="${m.id_log}">Edit</button>
+        <button class="delBtn text-sm px-2 py-1 bg-red-50 text-red-600 rounded" data-id="${m.id_log}">Hapus</button>
+      </div>`;
+      out.appendChild(el);
+    });
+  } else out.textContent = 'Gagal load data';
+  document.getElementById('spinner').classList.add('hidden');
+}
+
+document.getElementById('addForm').addEventListener('submit', async (ev)=>{
+  ev.preventDefault();
+  const payload = {
+    action:'addMaintenance', token,
+    id_armada: qs('#id_armada').value,
+    jenis: qs('#jenis').value,
+    tanggal: qs('#tanggal').value,
+    km_odometer: qs('#km').value,
+    catatan: qs('#catatan').value
+  };
+  try {
+    const res = await fetch(api, {method:'POST', body: JSON.stringify(payload)});
+    const j = await res.json();
+    if (!j.ok) alert(j.error || 'Gagal tambah');
+    else {
+      qs('#catatan').value=''; qs('#km').value='';
+      loadList();
+    }
+  } catch(err){ alert('Error: '+err.message) }
+});
+
+document.getElementById('list').addEventListener('click', async (ev)=>{
+  if (ev.target.classList.contains('delBtn')){
+    if (!confirm('Yakin ingin hapus laporan ini?')) return;
+    const id = ev.target.dataset.id;
+    const res = await fetch(api, {method:'POST', body: JSON.stringify({action:'deleteMaintenance', token, id_log: id})});
+    const j = await res.json();
+    if (!j.ok) alert(j.error || 'Gagal hapus'); else loadList();
+  } else if (ev.target.classList.contains('editBtn')){
+    const id = ev.target.dataset.id;
+    const newDate = prompt('Tanggal (YYYY-MM-DD):');
+    if (!newDate) return;
+    const km = prompt('KM / Odometer (kosong = tidak diubah):');
+    const note = prompt('Catatan (kosong = tidak diubah):');
+    const body = {action:'editMaintenance', token, id_log:id, tanggal:newDate};
+    if (km) body.km_odometer = km;
+    if (note) body.catatan = note;
+    const res = await fetch(api, {method:'POST', body: JSON.stringify(body)});
+    const j = await res.json();
+    if (!j.ok) alert(j.error || 'Gagal edit'); else loadList();
+  }
+});
+
+document.getElementById('refreshBtn').addEventListener('click', loadList);
+
+loadList();
+</script>
+</body>
+</html>
