@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>i-Armada - Armada Form</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="./config.js"></script>
+</head>
+<body class="bg-sky-50 min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-lg p-6 bg-white rounded shadow">
+    <h1 class="text-lg font-semibold text-sky-600 mb-4">Tambah / Edit Armada</h1>
+    <form id="form">
+      <input type="hidden" id="id_armada">
+      <div class="grid grid-cols-1 gap-3">
+        <input id="plat" class="border rounded px-3 py-2" placeholder="Plat Nomor (mis: B 1234 AB)" required>
+        <input id="merk" class="border rounded px-3 py-2" placeholder="Merk">
+        <input id="tipe" class="border rounded px-3 py-2" placeholder="Tipe">
+        <input id="tahun" class="border rounded px-3 py-2" placeholder="Tahun">
+        <input id="kapasitas" class="border rounded px-3 py-2" placeholder="Kapasitas (ex: 3 kg)">
+        <input id="pegangan" class="border rounded px-3 py-2" placeholder="Pegangan (Driver utama)">
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button class="py-2 px-4 bg-sky-500 text-white rounded" id="saveBtn">Simpan</button>
+        <a href="dashboard.html" class="py-2 px-4 border rounded">Kembali</a>
+      </div>
+    </form>
+    <div id="spinner" class="hidden mt-3"><div class="w-8 h-8 border-4 rounded-full spinner animate-spin border-sky-500 border-t-transparent"></div></div>
+  </div>
+
+<script>
+const api = API_URL;
+const token = localStorage.getItem('iarmada_token');
+const id_pt = localStorage.getItem('iarmada_id_pt');
+if (!token) window.location.href='login.html';
+
+function qs(sel){ return document.querySelector(sel); }
+function getParam(name){
+  const url = new URL(window.location.href);
+  return url.searchParams.get(name);
+}
+
+async function save(e){
+  e.preventDefault();
+  document.getElementById('spinner').classList.remove('hidden');
+  const id_armada = qs('#id_armada').value;
+  const body = {
+    action: id_armada ? 'editArmada' : 'addArmada',
+    token,
+    plat_nomor: qs('#plat').value.trim(),
+    merk: qs('#merk').value.trim(),
+    tipe: qs('#tipe').value.trim(),
+    tahun: qs('#tahun').value.trim(),
+    kapasitas: qs('#kapasitas').value.trim(),
+    pegangan: qs('#pegangan').value.trim(),
+  };
+  if (id_armada) body.id_armada = id_armada;
+  try {
+    const res = await fetch(api, {method:'POST', body: JSON.stringify(body)});
+    const j = await res.json();
+    if (!j.ok) alert(j.error || 'Gagal menyimpan');
+    else window.location.href = 'dashboard.html';
+  } catch(err){
+    alert('Error: '+err.message);
+  } finally {
+    document.getElementById('spinner').classList.add('hidden');
+  }
+}
+
+async function loadForEdit(){
+  const id = getParam('id_armada') || getParam('id');
+  if (!id) return;
+  // get armada list and fill
+  const res = await fetch(api + '?action=getArmada&id_pt='+encodeURIComponent(id_pt));
+  const j = await res.json();
+  if (!j.ok) return;
+  const a = j.data.find(x => x.id_armada == id);
+  if (!a) return;
+  qs('#id_armada').value = a.id_armada;
+  qs('#plat').value = a.plat_nomor;
+  qs('#merk').value = a.merk;
+  qs('#tipe').value = a.tipe;
+  qs('#tahun').value = a.tahun;
+  qs('#kapasitas').value = a.kapasitas;
+  qs('#pegangan').value = a.pegangan;
+}
+
+document.getElementById('form').addEventListener('submit', save);
+loadForEdit();
+</script>
+</body>
+</html>
