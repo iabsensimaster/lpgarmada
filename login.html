@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>i-Armada - Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="./config.js"></script>
+  <style>
+    .spinner { border-top-color: transparent; }
+  </style>
+</head>
+<body class="bg-sky-50 min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-md p-6 bg-white rounded-2xl shadow-md">
+    <h1 class="text-2xl font-semibold text-sky-600 mb-4">i-Armada — Login</h1>
+    <div id="toast" class="hidden mb-3 text-sm"></div>
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-sm">Email</label>
+        <input id="email" class="w-full border rounded px-3 py-2" type="email" required />
+      </div>
+      <div>
+        <label class="block text-sm">Password</label>
+        <input id="password" class="w-full border rounded px-3 py-2" type="password" required />
+      </div>
+      <button id="btnLogin" class="w-full py-2 rounded bg-sky-500 text-white font-medium">Login</button>
+    </form>
+    <p class="text-sm mt-4">Belum punya akun? <a href="register.html" class="text-sky-600 font-medium">Register</a></p>
+    <div id="spinner" class="hidden mt-4 flex items-center justify-center">
+      <div class="w-8 h-8 border-4 border-sky-500 rounded-full spinner animate-spin"></div>
+    </div>
+  </div>
+
+<script>
+const api = API_URL;
+const toastEl = document.getElementById('toast');
+function toast(msg, err) {
+  toastEl.textContent = msg;
+  toastEl.className = (err ? 'text-red-600' : 'text-green-600') + ' mb-3';
+  toastEl.style.display = 'block';
+  setTimeout(()=>{ toastEl.style.display='none' }, 3500);
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (ev)=>{
+  ev.preventDefault();
+  document.getElementById('spinner').classList.remove('hidden');
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  try {
+    const res = await fetch(api, {
+      method: 'POST',
+      body: JSON.stringify({action:'login', email, password})
+    });
+    const j = await res.json();
+    if (!j.ok) {
+      toast(j.error || 'Login gagal', true);
+    } else {
+      // save session
+      localStorage.setItem('iarmada_token', j.token);
+      localStorage.setItem('iarmada_id_admin', j.id_admin);
+      localStorage.setItem('iarmada_id_pt', j.id_pt);
+      localStorage.setItem('iarmada_nama', j.nama);
+      // redirect to dashboard
+      window.location.href = 'dashboard.html';
+    }
+  } catch(err){
+    toast('Terjadi error: ' + err.message, true);
+  } finally {
+    document.getElementById('spinner').classList.add('hidden');
+  }
+});
+</script>
+</body>
+</html>
