@@ -8,62 +8,119 @@
   <script src="./config.js"></script>
 </head>
 <body class="bg-sky-50 min-h-screen flex items-center justify-center">
-  <div class="w-full max-w-md p-6 bg-white rounded-2xl shadow-md">
-    <h1 class="text-2xl font-semibold text-sky-600 mb-4">Daftar Admin PT</h1>
-    <div id="toast" class="hidden mb-3 text-sm"></div>
+  <div class="w-full max-w-md p-6 bg-white rounded-2xl shadow-md relative">
+    <!-- Spinner -->
+    <div id="spinner" class="absolute inset-0 bg-white/70 flex items-center justify-center hidden">
+      <svg class="animate-spin h-8 w-8 text-sky-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+    </div>
+
+    <h1 class="text-2xl font-semibold text-sky-600 mb-4 text-center">Daftar Admin PT</h1>
+
+    <div id="toast" class="hidden mb-3 text-sm text-center font-medium"></div>
+
     <form id="regForm" class="space-y-4">
-      <div><label class="block text-sm">Nama</label><input id="nama" class="w-full border rounded px-3 py-2" required></div>
-      <div><label class="block text-sm">Email</label><input id="email" type="email" class="w-full border rounded px-3 py-2" required></div>
-      <div><label class="block text-sm">Password</label><input id="password" type="password" class="w-full border rounded px-3 py-2" required></div>
-      <div><label class="block text-sm">Pilih PT</label>
-        <select id="selectPT" class="w-full border rounded px-3 py-2"></select>
+      <div>
+        <label class="block text-sm font-medium mb-1">Nama</label>
+        <input id="nama" class="w-full border rounded px-3 py-2 focus:outline-sky-400" required>
       </div>
-      <button class="w-full py-2 rounded bg-sky-500 text-white">Register</button>
+      <div>
+        <label class="block text-sm font-medium mb-1">Email</label>
+        <input id="email" type="email" class="w-full border rounded px-3 py-2 focus:outline-sky-400" required>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Password</label>
+        <input id="password" type="password" class="w-full border rounded px-3 py-2 focus:outline-sky-400" required>
+      </div>
+      <div>
+        <label class="block text-sm font-medium mb-1">Pilih PT</label>
+        <select id="selectPT" class="w-full border rounded px-3 py-2 focus:outline-sky-400">
+          <option value="">Memuat daftar PT...</option>
+        </select>
+      </div>
+      <button class="w-full py-2 rounded bg-sky-500 text-white font-medium hover:bg-sky-600 transition">
+        Register
+      </button>
     </form>
-    <p class="text-sm mt-4">Sudah punya akun? <a href="login.html" class="text-sky-600">Login</a></p>
+
+    <p class="text-sm mt-4 text-center">Sudah punya akun?
+      <a href="login.html" class="text-sky-600 hover:underline">Login</a>
+    </p>
   </div>
 
 <script>
 const api = API_URL;
+const spinner = document.getElementById('spinner');
 const toastEl = document.getElementById('toast');
+
 function toast(msg, err) {
   toastEl.textContent = msg;
-  toastEl.className = (err ? 'text-red-600' : 'text-green-600') + ' mb-3';
+  toastEl.className = (err ? 'text-red-600' : 'text-green-600') + ' mb-3 text-center font-medium';
   toastEl.style.display = 'block';
   setTimeout(()=>{ toastEl.style.display='none' }, 3500);
 }
 
+function showSpinner(show) {
+  spinner.style.display = show ? 'flex' : 'none';
+}
+
+// Load daftar PT dari backend
 async function loadPTs(){
-  const res = await fetch(api + '?action=getPTs');
-  const j = await res.json();
+  showSpinner(true);
   const sel = document.getElementById('selectPT');
-  if (j.ok) {
-    j.data.forEach(p => {
-      const o = document.createElement('option');
-      o.value = p.id_pt; o.textContent = p.nama_pt;
-      sel.appendChild(o);
-    });
-  } else {
-    toast('Gagal ambil list PT', true);
+  sel.innerHTML = '<option value="">Memuat daftar PT...</option>';
+  try {
+    const res = await fetch(api + '?action=getPTs');
+    const j = await res.json();
+    sel.innerHTML = '<option value="">-- Pilih PT --</option>';
+    if (j.ok && j.data.length) {
+      j.data.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id_pt;
+        o.textContent = p.nama_pt;
+        sel.appendChild(o);
+      });
+    } else {
+      sel.innerHTML = '<option value="">Tidak ada data PT</option>';
+    }
+  } catch(err) {
+    console.error(err);
+    toast('Gagal memuat daftar PT. Pastikan backend aktif.', true);
+    sel.innerHTML = '<option value="">Gagal memuat</option>';
+  } finally {
+    showSpinner(false);
   }
 }
 
+// Handle submit register
 document.getElementById('regForm').addEventListener('submit', async (ev)=>{
   ev.preventDefault();
   const nama = document.getElementById('nama').value.trim();
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const id_pt = document.getElementById('selectPT').value;
+
+  if (!id_pt) return toast('Pilih PT terlebih dahulu', true);
+
+  showSpinner(true);
   try {
-    const res = await fetch(api, {method:'POST', body: JSON.stringify({action:'register', nama, email, password, id_pt})});
+    const res = await fetch(api, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'register', nama, email, password, id_pt})
+    });
     const j = await res.json();
-    if (!j.ok) toast(j.error || 'Register gagal', true);
+    if (!j.ok) toast(j.error || 'Registrasi gagal', true);
     else {
-      toast('Registrasi berhasil. Silakan login.');
-      setTimeout(()=> window.location.href='login.html', 1200);
+      toast('Registrasi berhasil! Silakan login.');
+      setTimeout(()=> window.location.href='login.html', 1500);
     }
   } catch(err){
     toast('Error: '+err.message, true);
+  } finally {
+    showSpinner(false);
   }
 });
 
